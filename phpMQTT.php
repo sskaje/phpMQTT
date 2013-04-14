@@ -52,6 +52,11 @@ class phpMQTT {
 		$this->broker($address, $port, $clientid);
 	}
 
+    function __destruct()
+    {
+        $this->close();
+    }
+
 	/* sets the broker details */
 	function broker($address, $port, $clientid){
 		$this->address = $address;
@@ -59,21 +64,38 @@ class phpMQTT {
 		$this->clientid = $clientid;		
 	}
 
+    var $connect_args = array();
+
+    function reconnect($close_current=true)
+    {
+        if ($close_current) {
+            $this->close();
+        }
+
+        return $this->connect(
+            $this->connect_args[0],
+            $this->connect_args[1],
+            $this->connect_args[2],
+            $this->connect_args[3]
+        );
+    }
+
 	/* connects to the broker 
 		inputs: $clean: should the client send a clean session flag */
 	function connect($clean = true, $will = NULL, $username = NULL, $password = NULL){
+        $this->connect_args = func_get_args();
 
 		if($will) $this->will = $will;
 		if($username) $this->username = $username;
 		if($password) $this->password = $password;
 
-		$address = gethostbyname($this->address);	
-		$this->socket = fsockopen($address, $this->port, $errno, $errstr, 60);
+		$address = gethostbyname($this->address);
 
-		if (!$this->socket ) {
-		    error_log("fsockopen() $errno, $errstr \n");
-			return false;
-		}
+		$this->socket = fsockopen($address, $this->port, $errno, $errstr, 60);
+        if (!$this->socket ) {
+            error_log("fsockopen() $errno, $errstr \n");
+            return false;
+        }
 
 		stream_set_timeout($this->socket, 5);
 		stream_set_blocking($this->socket,true);
@@ -243,9 +265,13 @@ class phpMQTT {
 		$head{0} = chr($cmd);		
 		$head .= $this->setmsglength($i);
 
-		fwrite($this->socket, $head, strlen($head));
-		fwrite($this->socket, $buffer, $i);
-
+        return fwrite($this->socket, $head . $buffer, strlen($head) + $i);
+        
+//		fwrite($this->socket, $head, strlen($head));
+//		fwrite($this->socket, $buffer, $i);
+//		
+//        
+//		return true;
 	}
 
 	/* message: processes a recieved topic */
