@@ -234,7 +234,9 @@ class phpMQTT {
 	/* close: sends a proper disconect, then closes the socket */
 	function close(){
 	 	$this->disconnect();
-		fclose($this->socket);	
+        if (is_resource($this->socket)) {
+            fclose($this->socket);
+        }
 	}
 
 	/* publish: publishes $content on a $topic */
